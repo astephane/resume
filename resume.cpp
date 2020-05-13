@@ -280,7 +280,7 @@ print() noexcept
 //
 // 3. Helper function in order to ease call of recursion template meta-program.
 //
-#define DEFINE_MAPPER( mapper, accum, fun, bar )		\
+#define DEFINE_MAPPER( mapper, accum, fun )			\
   namespace details						\
   {								\
     template< position P >					\
