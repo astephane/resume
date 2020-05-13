@@ -3,7 +3,11 @@
 //
 // compile: make CXX="g++-8" CXXFLAGS="-std=c++2a -Wall -Wextra -fext-numeric-literals" resume
 //
-// Compiled with GCC 8.3.0
+// You can just `make CXXFLAGS="-std=c++2a -Wall -Wextra resume` if
+// default compiler is GCC 8.3 or more.
+//
+//
+// Compiled with GCC 8.3.0 on Debian GNU/Linux 10.
 //
 // Copyright 2019, Stéphane ALBERT
 //
@@ -47,6 +51,7 @@ enum class position : int
   cs_vr,
   diginext,
   cs_space,
+  geown,
   //
   count,
 };
@@ -91,6 +96,7 @@ struct position_traits
 //
 // Implement position traits specializations.
 //
+DECLARE_POSITION_TRAITS( 2020, position::geown, "Geown (MD Group)" );
 DECLARE_POSITION_TRAITS( 2012, position::cs_space, "CS, Space Dpt" );
 DECLARE_POSITION_TRAITS( 2010, position::diginext, "Diginext (CS Group);" );
 DECLARE_POSITION_TRAITS( 2003, position::cs_vr, "CS, Virtual-Reality Dpt" );
