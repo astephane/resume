@@ -1,11 +1,11 @@
 //
-// Written with GNU Emacs 25.2.2
+// Written with GNU Emacs 25.2.2, 26.1
 //
-// compile: make CXX="g++-8" CXXFLAGS="-std=c++2a -Wall -Wextra -fext-numeric-literals" resume
+// On Debian GNU/Linux 10, with G++ 8.3.0 please compile using:
+// `make CXX="g++-8" CXXFLAGS="-std=c++2a -Wall -Wextra -Werror" resume`
 //
-// You can just `make CXXFLAGS="-std=c++2a -Wall -Wextra resume` if
-// default compiler is GCC 8.3 or more.
-//
+// You can just `make CXXFLAGS="-Wall -Wextra -Werror resume` if you have a
+// more recent C++20 enabled compiler.
 //
 // Compiled with GCC 8.3.0 on Debian GNU/Linux 10.
 //
@@ -54,12 +54,14 @@ enum class position : int
   geown,
   //
   count,
+  first = none,
+  last = geown,
 };
 
 /*******************************************************************************/
 //
-// We define a traits class in order to associate data (begin year,
-// company, etc.) to positions.
+// We define a traits class in order to statically associate data
+// (begin year, company, etc.) to positions.
 //
 template< position P >
 struct position_traits
@@ -73,9 +75,9 @@ struct position_traits
   // So, if a new position is added, the compiler will generate output
   // if related traits are not implemented.
   // {
-  static constexpr std::string name() noexcept;
+  static constexpr char const * name() noexcept;
 
-  static constexpr int year() noexcept;
+  static constexpr std::size_t year() noexcept;
   // }
 };
 
@@ -84,13 +86,13 @@ struct position_traits
 //
 // Factorize position traits specilization using macro definition.
 //
-#define DECLARE_POSITION_TRAITS( Year, Position, Name )			\
-  template<>								\
-  struct position_traits< Position >					\
-  {									\
-    static constexpr char const * name() noexcept { return Name; }	\
-									\
-    static constexpr int year() noexcept { return Year; }		\
+#define DECLARE_POSITION_TRAITS( Year, Position, Name )             \
+  template<>                                                        \
+  struct position_traits< Position >                                \
+  {                                                                 \
+    static constexpr char const * name() noexcept { return Name; }  \
+                                                                    \
+    static constexpr std::size_t year() noexcept { return Year; }   \
   }
 
 //
@@ -107,13 +109,13 @@ DECLARE_POSITION_TRAITS( 2001, position::babylon_software, "Babylon Software" );
 // Factorize traits helper function declaration using macro
 // definition.
 //
-#define DECLARE_HELPER( trait )			\
-  template< position P >			\
-  constexpr					\
-  auto						\
-  trait() noexcept				\
-  {						\
-    return position_traits< P >::trait();	\
+#define DECLARE_HELPER( trait )                 \
+  template< position P >                        \
+  constexpr                                     \
+  auto                                          \
+  trait() noexcept                              \
+  {                                             \
+    return position_traits< P >::trait();       \
   }
 
 // Implement traits helper functions.
@@ -126,22 +128,22 @@ namespace details
   //
   // Factorize application of unary-operator to position enum-class.
   //
-  template< position P, typename UnaryOp >
+  template< position P,
+            typename UnaryOp >
   constexpr
-  auto
+  position
   eval( UnaryOp unary_op ) noexcept
   {
     using underlying_type_t = std::underlying_type_t< position >;
 
     return
       static_cast< position >(
-  	unary_op(
-  	  static_cast< underlying_type_t >( P )
-  	  )
-  	);
+        unary_op(
+          static_cast< underlying_type_t >( P )
+          )
+        );
   }
 } // namespace details.
-
 
 /*******************************************************************************/
 //
@@ -149,7 +151,7 @@ namespace details
 //
 template< position P >
 constexpr
-auto
+position
 next() noexcept
 {
   return details::eval< P >(
@@ -157,14 +159,13 @@ next() noexcept
     );
 }
 
-
 /*******************************************************************************/
 //
 // Previous position.
 //
 template< position P >
 constexpr
-auto
+position
 prev() noexcept
 {
   return details::eval< P >(
@@ -172,25 +173,26 @@ prev() noexcept
     );
 }
 
-
 /*******************************************************************************/
 //
 // Number of years between two positions.
 //
 template< position LHS, position RHS >
 constexpr
-auto
+std::size_t
 diff() noexcept
 {
+  static_assert( ::year< LHS >() >= ::year< RHS >() );
+
   return ::year< LHS >() - ::year< RHS >();
 }
 
 /*******************************************************************************/
 //
-// Begin "iterator".
+// Begin "static iterator".
 //
 constexpr
-auto
+position
 begin() noexcept
 {
   return next< position::none >();
@@ -198,10 +200,10 @@ begin() noexcept
 
 /*******************************************************************************/
 //
-// End "iterator".
+// End "static iterator".
 //
 constexpr
-auto
+position
 end() noexcept
 {
   return position::count;
@@ -212,7 +214,7 @@ end() noexcept
 // First position.
 //
 constexpr
-auto
+position
 first() noexcept
 {
   return begin();
@@ -223,7 +225,7 @@ first() noexcept
 // Last (or current) position.
 //
 constexpr
-auto
+position
 last() noexcept
 {
   return prev< end() >();
@@ -236,7 +238,7 @@ last() noexcept
 template< position P >
 constexpr
 void
-print_end_year() noexcept
+print_end_year()
 {
   std::cout << year< next< P >() >();
 }
@@ -248,7 +250,7 @@ print_end_year() noexcept
 //
 template<>
 void
-print_end_year< last() >() noexcept
+print_end_year< last() >()
 {
   std::cout << std::setw( 4 ) << ' ';
 }
@@ -259,8 +261,8 @@ print_end_year< last() >() noexcept
 //
 template< position P >
 constexpr
-auto
-print() noexcept
+std::size_t
+print()
 {
   std::cout << year< P >() << "-";
 
@@ -286,40 +288,40 @@ print() noexcept
 //
 // 3. Helper function in order to ease call of recursion template meta-program.
 //
-#define DEFINE_MAPPER( mapper, accum, fun )			\
-  namespace details						\
-  {								\
-    template< position P >					\
-      constexpr							\
-      auto							\
-      mapper( accum a ) noexcept				\
-    {								\
-      fun< P >();						\
-								\
-      constexpr auto before = prev< P >();			\
-								\
-      return mapper< before >( a + diff< P, before >() );	\
-    }								\
-								\
-    template<>							\
-      constexpr							\
-      auto							\
-      mapper< begin() >( accum a ) noexcept			\
-    {								\
-      fun< begin() >();						\
-								\
-      return a;							\
-    }								\
-  }								\
-								\
-  constexpr							\
-  auto								\
-  mapper( accum a )						\
-  {								\
-    return details::mapper< last() >( a );			\
-  }								\
+#define DEFINE_MAPPER( mapper, accum, fun )               \
+  namespace details                                       \
+  {                                                       \
+    template< position P >                                \
+      constexpr                                           \
+      auto                                                \
+      mapper( accum a )                                   \
+    {                                                     \
+      fun< P >();                                         \
+                                                          \
+      constexpr auto before = prev< P >();                \
+                                                          \
+      return mapper< before >( a + diff< P, before >() ); \
+    }                                                     \
+                                                          \
+    template<>                                            \
+      constexpr                                           \
+      auto                                                \
+      mapper< begin() >( accum a )                        \
+    {                                                     \
+      fun< begin() >();                                   \
+                                                          \
+      return a;                                           \
+    }                                                     \
+  }                                                       \
+                                                          \
+  constexpr                                               \
+  auto                                                    \
+  mapper( accum a )                                       \
+  {                                                       \
+    return details::mapper< last() >( a );                \
+  }                                                       \
 
-DEFINE_MAPPER( print_resume, int, ::print )
+DEFINE_MAPPER( print_resume, std::size_t, ::print )
 
 /*******************************************************************************/
 //
@@ -329,7 +331,7 @@ int
 current_year()
 {
   std::time_t sys_now = std::time( nullptr );
-  auto * local_now = std::localtime( &sys_now );
+  std::tm * local_now = std::localtime( &sys_now );
 
   if( !local_now )
     throw std::runtime_error( "Failed to retrieve local time." );
